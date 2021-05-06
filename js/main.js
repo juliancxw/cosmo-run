@@ -20,20 +20,23 @@ function init() {
 	createLights();
 
 	// add the objects
-	// createPlane();
-	createSea();
+	createCosmo();
+	createPlanet();
 	// createSky();
+    createCrater()
 
-    //add the listener
-	// document.addEventListener('mousemove', handleMouseMove, false);
+    // add mouse listener to
+    // move dog left and right when mouse moves
+	document.addEventListener('mousemove', handleMouseMove, false);
+    // make dog jump when mouse click
+    document.addEventListener('mousedown', handleMouseDown, false);
 	
-	// start a loop that will update the objects' positions 
-	// and render the scene on each frame
+	// start a loop that will update the objects' positions and rerender the scene on each frame
 	loop();
 }
 
 
-// create scene
+// Create scene
 let scene = ""
 let camera = ""
 let fieldOfView = 0
@@ -44,6 +47,7 @@ let screenHeight = 0
 let screenWidth = 0
 let renderer = ""
 let container = ""
+let gameStatus = "paused"
 
 
 function createScene() {
@@ -55,7 +59,7 @@ function createScene() {
 	scene = new THREE.Scene();
 
 	// Add fog effect to the scene for depth perception - Fog( color , near distance, far distance )
-	scene.fog = new THREE.Fog(0x322548, 100, 950);
+	scene.fog = new THREE.Fog(0x322548, 300, 400);
 	
 	// Create camera
 	aspectRatio = screenWidth / screenHeight;
@@ -83,23 +87,21 @@ function createScene() {
 		antialias: true 
 	});
 
-    	// Define the size of the renderer; in this case,
-	// it will fill the entire screen
+    // Set renderer size to fit entire screen
 	renderer.setSize(screenWidth, screenHeight);
 	
 	// Enable shadow rendering
 	renderer.shadowMap.enabled = true;
 	
-	// Add the DOM element of the renderer to the 
-	// container we created in the HTML
+	// Add the DOM element of the renderer to #world html
 	container = document.getElementById('world');
 	container.appendChild(renderer.domElement);
 	
-	// Listen to the screen: if the user resizes it
-	// we have to update the camera and the renderer size
+	// Listen for screen resize
 	window.addEventListener('resize', handleWindowResize, false);
 }
 
+// Handle screen resize
 function handleWindowResize() {
 	// update height and width of the renderer and the camera
 	screenHeight = window.innerHeight;
@@ -109,7 +111,27 @@ function handleWindowResize() {
 	camera.updateProjectionMatrix();
 }
 
-var hemisphereLight, shadowLight;
+// Handle mouse click - dog jump
+function handleMouseDown(event){
+    if (gameStatus == "paused") {
+        gameStatus = "playing"
+        // loop()
+    }
+    else {
+        cosmo.jump()
+    }
+  }
+
+// Handle mouse movement - dog move left and right
+let mousePos = { x: 0, y: 0 };
+
+function handleMouseMove(event) {
+   cosmo.move(event.clientX)
+}
+
+
+let hemisphereLight
+let shadowLight
 
 function createLights() {
 	// A hemisphere light is a gradient colored light; 
@@ -145,58 +167,255 @@ function createLights() {
 	scene.add(shadowLight);
 }
 
+//OBJECTS
 
+// Template to create Planet
+let planetRadius = 600
+let pi = Math.PI
+let laneDistance = 100
+let moveRotation = Math.asin(laneDistance/planetRadius)
+let spehericalCorrection = planetRadius - Math.cos(moveRotation) * planetRadius
 
-// First let's define a Sea object :
-class Sea {
-	constructor () {
-
+class Planet {
+	
+    constructor () {
+	    // create the geometry (shape) of the planet; Sphere
+	    let geom = new THREE.SphereGeometry(planetRadius,32,32);
+	
+	    // rotate the geometry on the x axis
+	    // geom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+	
+	    // create the material 
+	    let mat = new THREE.MeshPhongMaterial({
+		    color:Colors.pink,
+		    // transparent:true,
+		    // opacity:.6,
+		    shading:THREE.FlatShading,
+	    });
    
-	// create the geometry (shape) of the cylinder;
-	// the parameters are: 
-	// radius top, radius bottom, height, number of segments on the radius, number of segments vertically
-	var geom = new THREE.SphereGeometry(600,32,32);
-	
-	// rotate the geometry on the x axis
-	// geom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
-	
-	// create the material 
-	var mat = new THREE.MeshPhongMaterial({
-		color:Colors.blue,
-		transparent:true,
-		opacity:.6,
-		shading:THREE.FlatShading,
-	});
+	    // create mesh object
+	    this.mesh = new THREE.Mesh(geom, mat);
 
-	// To create an object in Three.js, we have to create a mesh 
-	// which is a combination of a geometry and some material
-	this.mesh = new THREE.Mesh(geom, mat);
-
-	// Allow the sea to receive shadows
-	this.mesh.receiveShadow = true; 
-}
+	    // Allow mesh to receive shadow
+	    this.mesh.receiveShadow = true; 
+    }
 }
 
-// Instantiate the sea and add it to the scene:
+class Cosmo {
+    constructor () {
+        // holds action of object
+        this.status = "running"
+        this.runningCycle = 0
+        this.lane = "center"
+        // create object to hold parts
+        this.mesh = new THREE.Object3D()
+        this.mesh.name = "cosmo"
+        this.mesh.rotation.y = Math.PI
+        // this.mesh.position.z = -500
+        // create torso
+        let torsoGeom = new THREE.BoxGeometry(50,50,120)
+        let torsoMat = new THREE.MeshPhongMaterial({color:Colors.white, shading:THREE.FlatShading})
+        this.torso = new THREE.Mesh(torsoGeom, torsoMat)
+        this.torso.castShadow = true;
+        this.torso.receiveShadow = true;
+        this.mesh.add(this.torso)
 
-var sea;
+        // create front right leg
+        let legFRGeom = new THREE.BoxGeometry(20,80,20)
+        // shift origin to left
+        legFRGeom.applyMatrix(new THREE.Matrix4().makeTranslation(10,0,-10));
+        let legFRMat = new THREE.MeshPhongMaterial({color:Colors.brown, shading:THREE.FlatShading})
+        this.legFR = new THREE.Mesh(legFRGeom, legFRMat)
+        this.legFR.position.x = 25
+        this.legFR.position.y = -40
+        this.legFR.position.z = 60
+        this.legFR.castShadow = true;
+        this.legFR.receiveShadow = true;
+        this.torso.add(this.legFR)
 
-function createSea(){
-	sea = new Sea();
+        // create front left leg
+        this.legFL = this.legFR.clone()
+        this.legFL.position.x = - this.legFR.position.x - 20
+        this.legFL.castShadow = true;
+        this.legFL.receiveShadow = true;
+        this.torso.add(this.legFL)
+
+        // create back right leg
+        this.legBR = this.legFR.clone()
+        this.legBR.position.z = -45
+        this.legBR.castShadow = true;
+        this.legBR.receiveShadow = true;
+        this.torso.add(this.legBR)
+
+        // create back left leg
+        this.legBL = this.legFL.clone()
+        this.legBL.position.z = -45
+        this.legBL.castShadow = true;
+        this.legBL.receiveShadow = true;
+        this.torso.add(this.legBL)
+
+        // create head
+        let headGeom = new THREE.BoxGeometry(30,30,50)
+        let headMat = new THREE.MeshPhongMaterial({color:Colors.brown, shading:THREE.FlatShading})
+        this.head = new THREE.Mesh(headGeom, headMat)
+        this.head.position.x = 0
+        this.head.position.y = 40
+        this.head.position.z = 75
+        this.head.castShadow = true;
+        this.head.receiveShadow = true;
+        this.torso.add(this.head)
+    }
+
+    // Method for jumping
+    jump() {
+    // dont do anything if already jumping
+        if (this.status == "jumping") {
+            return
+        }
+        this.status = "jumping"
+        this.mesh.position.y += 100
+        let _this = this
+        setTimeout(function(){
+            _this.mesh.position.y -= 100
+            _this.status = "running"
+        }, 500)
+    console.log(cosmo.status)
+    }
+
+    // Move Object left and right based on mouse
+    move(mousePosition) {
+        
+        if (this.status == "jumping" || gameStatus == "paused") {
+            return
+        }
+        else if (mousePosition < screenWidth/3 && this.lane == "center") {
+            this.mesh.position.x -= laneDistance
+            this.mesh.position.y -= spehericalCorrection
+            this.mesh.rotation.z = -moveRotation
+            this.lane = "left"
+            console.log("moving left")
+        }
+        else if (mousePosition > screenWidth/3 && this.lane == "left") {
+            this.mesh.position.x += laneDistance
+            this.mesh.position.y += spehericalCorrection 
+            this.mesh.rotation.z = 0
+            this.lane = "center"
+            console.log("moving back to center")
+        }
+        else if (mousePosition > 2 * screenWidth/3 && this.lane == "center") {
+            this.mesh.position.x += laneDistance
+            this.mesh.rotation.z = moveRotation
+            this.mesh.position.y -= spehericalCorrection 
+            this.lane = "right"
+            console.log("moving right")
+        }
+        else if ((mousePosition > screenWidth/3) && (mousePosition < 2 * screenWidth/3) && (this.lane == "right")) {
+            this.mesh.position.x = 0
+            this.mesh.position.y += spehericalCorrection 
+            this.mesh.rotation.z = 0
+            this.lane = "center"
+            console.log("moving from right to center")
+        }
+    }
+}
+
+class Crater {
+    constructor () {
+        this.mesh = new THREE.Object3D()
+        let craterGeom = new THREE.CylinderGeometry( 30, 50, 30, 32 )
+        let craterMat = new THREE.MeshPhongMaterial({color:Colors.brown, shading:THREE.FlatShading})
+        this.crater = new THREE.Mesh(craterGeom, craterMat)
+        this.mesh.add(this.crater)
+        
+
+        // this.mesh.position.y = planetRadius
+    }
+    
+
+}
+
+
+
+// Instantiate Planet and add to scene
+
+let planet = ""
+let cosmo = ""
+let crater = ""
+let cratersCreated = []
+
+function createPlanet(){
+	planet = new Planet();
 
 	// push it a little bit at the bottom of the scene
-	sea.mesh.position.y = -600;
+	planet.mesh.position.y = -600;
 
 	// add the mesh of the sea to the scene
-	scene.add(sea.mesh);
+	scene.add(planet.mesh);
 }
 
+function createCosmo(){
+    cosmo = new Cosmo();
+    cosmo.mesh.scale.set(.25,.25,.25);
+    let cosmoPositionZ = 150
+    let positionAngle = Math.asin(cosmoPositionZ/planetRadius)
+    cosmo.mesh.position.y = 0;
+    cosmo.mesh.position.z = 150;
+    cosmo.mesh.rotation.x = positionAngle
+    
+    scene.add(cosmo.mesh);
+  }
 
+  function createCrater(){
+   
+    // crater.mesh.position.y = 40;
+    // crater.mesh.scale.set(.5,.5,.5);
+    // Create craters outside lanes
+    let nCraters = 10
+    let craterSpacing = (2 * pi) / nCraters
+    for (let i = 1; i <= nCraters; i++){
+        // Space craters out evenly
+        let phi = Math.acos(2 * Math.random() -1)
+       
+        let theta = 2 * pi * Math.random()
+        
+        crater = new Crater();
+        let spherical = new THREE.Spherical();
+        spherical.set(planetRadius, phi, theta); 
+        crater.mesh.position.setFromSpherical(spherical)
+        // crater.mesh.position.x = Math.cos(phi) * (Math.sin(theta) * planetRadius)
+        // crater.mesh.position.y = Math.sin(phi) * (Math.sin(theta) * planetRadius)
+        // crater.mesh.position.z = Math.cos(theta) * planetRadius
+        let vec = crater.mesh.position.clone();
+        let axis = new THREE.Vector3(0,1,0);
+        crater.mesh.quaternion.setFromUnitVectors(axis, vec.clone().normalize());
+        cratersCreated.push(crater.mesh)
+        planet.mesh.add(crater.mesh);
+    }
+  }
+
+// Game Play
+
+// Check for collision with crater
+function collisionCheck(){
+    let craterPosition = new THREE.Vector3()
+    // console.log(cratersCreated)
+    for (let i = 0; i < cratersCreated.length; i++) {
+        let singleCrater = cratersCreated[i]
+        console.log(singleCrater)
+        craterPosition.setFromMatrixPosition (singleCrater.matrixWorld)
+        if (craterPosition.distanceTo(cosmo.position)<= 30) {
+            gameStatus = "paused"
+            console.log("paused")
+        }
+    }
+}
 
 function loop(){
 	// Rotate the propeller, the sea and the sky
 	// airplane.propeller.rotation.x += 0.3;
-	sea.mesh.rotation.x += .005;
+    if (gameStatus == "playing") {
+	    planet.mesh.rotation.x += .005;
+    }
 	// sky.mesh.rotation.z += .01;
 
 	// update the plane on each frame
@@ -204,4 +423,7 @@ function loop(){
 	
 	renderer.render(scene, camera);
 	requestAnimationFrame(loop);
+    collisionCheck()
 }
+
+//
