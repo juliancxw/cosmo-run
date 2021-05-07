@@ -22,7 +22,7 @@ function init() {
 	// add the objects
 	createCosmo()
 	createPlanet()
-    gameCraters()
+    createWorldCraters()
 
     // add mouse listener to
     // move dog left and right when mouse moves
@@ -69,8 +69,9 @@ let leftLane=-1
 let rightLane=1
 let middleLane=0
 let currentLane
-let pathAngleValues = [pi + Math.asin(laneDistance / planetRadius), pi, pi - Math.asin(laneDistance / planetRadius)]
-let nCraters = 30
+let pathAngleValues = [pi/2 - Math.asin(laneDistance / planetRadius), pi / 2, pi / 2 + Math.asin(laneDistance / planetRadius)]
+let nPathCraters = 30
+let nWorldCraters = 60
 let cratersInPath = []
 let cratersCreated = []
 let craterReleaseInterval = 1000
@@ -92,7 +93,7 @@ function createScene() {
 	scene = new THREE.Scene();
 
 	// Add fog effect to the scene for depth perception - Fog( color , near distance, far distance )
-	scene.fog = new THREE.Fog(0x322548, 6, 7);
+	// scene.fog = new THREE.Fog(0x322548, 6, 7);
 	
 	// Create camera
 	aspectRatio = screenWidth / screenHeight;
@@ -109,7 +110,10 @@ function createScene() {
 	// Set position of the camera
 	camera.position.z = 6.5;
 	camera.position.y = 2.5;
-	
+
+    //Camera position to test
+	// camera.position.z = 50;
+	// camera.position.y = -5;
 	// Create the renderer
 	renderer = new THREE.WebGLRenderer({ 
 		// Allow transparency to show the gradient background in the CSS
@@ -372,7 +376,8 @@ function createPlanet(){
 
 	// push it a little bit at the bottom of the scene
 	planet.mesh.position.y = -24;
-    // planet.mesh.position.z = 2;
+    // rotate planet so that craters can be added easily - spherical coordinates work around
+    planet.mesh.rotation.z = pi /2;
 	// add the mesh of the sea to the scene
 	scene.add(planet.mesh);
 }
@@ -392,27 +397,25 @@ function createCosmo(){
     scene.add(cosmo.mesh);
   }
 
-  function gameCraters() {
-    let newCrater
-    for (let i = 0; i < nCraters; i++) {
-        newCrater = new Crater()
-        cratersCreated.push(newCrater.mesh)
-        // console.log(newCrater.mesh)
-    }
-  }
 
   function addCraterToPath() {
+      let newCrater
+      for (let i = 0; i < nPathCraters; i++) {
+            newCrater = new Crater()
+            cratersCreated.push(newCrater.mesh)
+            // console.log(newCrater.mesh)
+        }
       if (cratersCreated.length == 0) return;
       let addCrater = cratersCreated.pop()
       addCrater.visible = true
       cratersInPath.push(addCrater)
       let randomPath = Math.floor(Math.random() * 3)
       
-      // theta controls the lane 
-      let theta = pathAngleValues[randomPath]
-      // phi controls how far back in the sphere the crater is added on
+      // phi controls the lane 
+      let phi = pathAngleValues[randomPath]
+      // theta controls how far back in the sphere the crater is added on
         // will add nearer and nearer as game goes on
-      let phi = - planet.mesh.rotation.x - 4
+      let theta = - planet.mesh.rotation.x + 4
       spherical.set( planetRadius, phi, theta )
       console.log("adding craters")
     //   spherical.set( planetRadius-0.3, pathAngleValues[randomPath], - planet.mesh.rotation.x -4 );
@@ -433,34 +436,33 @@ function createCosmo(){
     }
 
   // add craters outside path for effect  
-  function createCrater(){
-   
-    // crater.mesh.position.y = 40;
-    // crater.mesh.scale.set(.5,.5,.5);
-    // Create craters outside lanes
+  function createWorldCraters(){
+    
+    let worldAngles = []
+    for (let i = 0; i < nWorldCraters; i++) {   
+        let newCrater = new Crater
+        let pathAngle = Math.asin(laneDistance / planetRadius) + 0.1
+        let randomRightAngle = (pi / 2 + pathAngle) + (Math.random() * 0.1)
 
-    // let craterSpacing = 
-    for (let i = 1; i <= nCraters; i++){
-        // Space craters out evenly
-        let phi = Math.random() * ((pi - moveRotation) - moveRotation) + moveRotation
-        // Math.random() * ((pi - moveRotation) - moveRotation) + moveRotation
-        // (2 * pi / nCraters) * Math.random() * i
+        let randomLeftAngle = (pi / 2 - pathAngle) - (Math.random() * 0.1)
+        worldAngles = [randomLeftAngle, randomRightAngle]
+        // worldAngles = [pi + pathAngle, (2 * pi) - pathAngle]
+        let randomPlacement = Math.floor(Math.random() * 2)
         
-        let minTheta = Math.acos((laneDistance)/planetRadius)
-        let theta =  minTheta + (((pi - (2 * minTheta)) / (0.5 * nCraters)) * i)
+        // phi controls left or right placement
+        let phi = worldAngles[randomPlacement]
+        // theta places craters evenly around whole planet
+        let theta = (2 * pi / nWorldCraters) * i
+        spherical.set( planetRadius, phi, theta )
+        newCrater.mesh.position.setFromSpherical( spherical );
         
-        crater = new Crater();
-        
-        spherical.set(planetRadius, phi, theta); 
-        crater.mesh.position.setFromSpherical(spherical)
-        // crater.mesh.position.x = Math.cos(phi) * (Math.sin(theta) * planetRadius)
-        // crater.mesh.position.y = Math.sin(phi) * (Math.sin(theta) * planetRadius)
-        // crater.mesh.position.z = Math.cos(theta) * planetRadius
-        let vec = crater.mesh.position.clone();
+        let vec = newCrater.mesh.position.clone();
         let axis = new THREE.Vector3(0,1,0);
-        crater.mesh.quaternion.setFromUnitVectors(axis, vec.clone().normalize());
-        cratersCreated.push(crater.mesh)
-        planet.mesh.add(crater.mesh);
+        newCrater.mesh.quaternion.setFromUnitVectors(axis, vec.clone().normalize());
+        newCrater.mesh.rotation.x+=(Math.random()*(2*Math.PI/10))+-Math.PI/10;
+        // // //   clock.start()
+ 
+        planet.mesh.add(newCrater.mesh);
     }
   }
 
@@ -497,7 +499,7 @@ function collisionCheck(){
     cratersInPath.forEach ( (element, index) => {
         subjectCrater = cratersInPath[index]
         craterPos.setFromMatrixPosition( subjectCrater.matrixWorld )
-        if ( craterPos.distanceTo(cosmo.mesh.position) <= 1.5){
+        if ( craterPos.distanceTo(cosmo.mesh.position) <= 1){
             console.log("collided")
             hasCollided = true
             gameStatus = "paused"
