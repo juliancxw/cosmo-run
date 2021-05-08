@@ -1,5 +1,3 @@
-
-
 let Colors = {
 	red:0xf25346,
 	white:0xd8d0d1,
@@ -71,11 +69,11 @@ let startTime
 let currentTime
 let planetRollingSpeed = 0.008
 let pathAngleValues = [pi/2 - Math.asin(laneDistance / planetRadius), pi / 2, pi / 2 + Math.asin(laneDistance / planetRadius)]
-let nPathCraters = 60
+let nPathCraters = 6
 let nWorldCraters = 60
 let cratersInPath = []
 let cratersCreated = []
-let craterReleaseInterval = 1000
+let craterReleaseInterval = 800
 let lastCraterReleaseTime = 0
 let spherical = new THREE.Spherical();
 let scoreText = document.querySelector("#distValue")
@@ -84,6 +82,7 @@ let level = 1
 let levelText = document.querySelector('#levelValue')
 let gameOverText = document.querySelector('#game-over')
 gameOverText.style.visibility = "hidden"
+let pauseText = document.querySelector('#pause')
 
 
 
@@ -158,13 +157,16 @@ function handleWindowResize() {
 function handleMouseDown(event){
     if (gameStatus == "paused") {
         gameStatus = "playing"
+        pauseText.style.visibility = "hidden"
         // Start timer to keep track of game
         startTime = new Date()
+        console.log("start game")
     }
-    // else if (gameStatus == "gameOver") {
-        
-    // }
-    else {
+    else if (gameStatus == "gameOver") {
+        console.log("reset game")
+        resetGame()
+    }
+    else if (gameStatus =="playing"){
         cosmo.jump()
     }
   }
@@ -386,7 +388,7 @@ class Cosmo {
     // Move Object left and right based on mouse
     move(mousePosition) {
         
-        if (this.status == "jumping" || gameStatus == "paused") {
+        if (this.status == "jumping" || gameStatus == "paused" || gameStatus == "gameOver") {
             return
         }
         else if (mousePosition < screenWidth/3 && this.lane == "center") {
@@ -454,6 +456,7 @@ function createPlanet(){
 	planet.mesh.position.y = -24;
     // rotate planet so that craters can be added easily - spherical coordinates work around
     planet.mesh.rotation.z = pi /2;
+    planet.mesh.name = "planet"
 	// add the mesh of the sea to the scene
 	scene.add(planet.mesh);
 }
@@ -479,47 +482,49 @@ function createCosmo(){
   }
 
 
-  function addCraterToPath() {
-      let newCrater
-      for (let i = 0; i < nPathCraters; i++) {
-            newCrater = new Crater()
-            cratersCreated.push(newCrater.mesh)
-            // console.log(newCrater.mesh)
-        }
-      if (cratersCreated.length == 0) return;
-      let addCrater = cratersCreated.pop()
-      addCrater.visible = true
-      cratersInPath.push(addCrater)
-      let randomPath = Math.floor(Math.random() * 3)
-      
-      // phi controls the lane 
-      let phi = pathAngleValues[randomPath]
-      // theta controls how far back in the sphere the crater is added on
-       
-      let theta = - planet.mesh.rotation.x + 4
-   
-      spherical.set( planetRadius, phi, theta )
-      console.log("adding craters")
+function addCraterToPath() {
+    let newCrater
+    for (let i = 0; i < nPathCraters; i++) {
+        newCrater = new Crater()
+        cratersCreated.push(newCrater.mesh)
+        // console.log(newCrater.mesh)
+    }
+
+    if (cratersCreated.length == 0) return;
+    let addCrater = cratersCreated.pop()
+    addCrater.visible = true
+    cratersInPath.push(addCrater)
+    let randomPath = Math.floor(Math.random() * 3)
+    
+    // phi controls the lane 
+    let phi = pathAngleValues[randomPath]
+    // theta controls how far back in the sphere the crater is added on
+    
+    let theta = - planet.mesh.rotation.x + 4
+    // let theta = 2.74 + (Math.random()* (pi - 2.74))
+    spherical.set( planetRadius, phi, theta )
+    console.log("adding craters")
     //   spherical.set( planetRadius-0.3, pathAngleValues[randomPath], - planet.mesh.rotation.x -4 );
-      addCrater.position.setFromSpherical( spherical );
+        addCrater.position.setFromSpherical( spherical );
     //   let rollingPlanetVector = planet.mesh.position.clone().normalize();
     //   let craterVector = addCrater.position.clone().normalize();
     //   addCrater.quaternion.setFromUnitVectors(craterVector,rollingPlanetVector);
     //   addCrater.rotation.x+=(Math.random()*(2*Math.PI/10))+-Math.PI/10;
 
-      let vec = addCrater.position.clone();
-      let axis = new THREE.Vector3(0,1,0);
-      addCrater.quaternion.setFromUnitVectors(axis, vec.clone().normalize());
+    let vec = addCrater.position.clone();
+    let axis = new THREE.Vector3(0,1,0);
+    addCrater.quaternion.setFromUnitVectors(axis, vec.clone().normalize());
 
-    //   clock.start()
-      planet.mesh.add(addCrater);
-      
+ 
+    planet.mesh.add(addCrater);
+    
+    
     startTime = new Date()
-    }
+}
 
   // add craters outside path for effect  
-  function createWorldCraters(){
-    
+function createWorldCraters(){
+
     let worldAngles = []
     for (let i = 0; i < nWorldCraters; i++) {   
         let newCrater = new Crater
@@ -543,10 +548,10 @@ function createCosmo(){
         newCrater.mesh.quaternion.setFromUnitVectors(axis, vec.clone().normalize());
         newCrater.mesh.rotation.x+=(Math.random()*(2*Math.PI/10))+-Math.PI/10;
         // // //   clock.start()
- 
+
         planet.mesh.add(newCrater.mesh);
-    }
-  }
+}
+}
 
 // Remove craters outside of game play
 function removeCrater() {
@@ -586,9 +591,34 @@ function collisionCheck(){
             hasCollided = true
             gameStatus = "gameOver"
             gameOverText.style.visibility = "visible"
-
+    
         }
     })
+}
+
+// Reset game
+function resetGame(){
+    console.log(cratersInPath)
+    for (let i = 0; i < cratersInPath.length; i++) {
+        // cratersInPath[i].visible = false
+        planet.mesh.remove(cratersInPath[i])
+        cratersInPath.splice(i,1);
+        console.log("removing object")
+    }
+    // cratersInPath.forEach ( (element, index) => {
+    //     cratersInPath[index].visible=false;
+	// 	cratersInPath.splice(index,1);
+    // })
+  
+    console.log(cratersInPath)
+    
+    gameStatus = "paused"
+    
+    gameOverText.style.visibility = "hidden"
+    score = 0
+    level = 1
+    craterReleaseInterval = 800
+
 }
 
 function loop(){
@@ -598,7 +628,6 @@ function loop(){
     if (gameStatus == "playing") {
         planet.mesh.rotation.x += planetRollingSpeed;
         
-  
 	// sky.mesh.rotation.z += .01;
 
 	// update the plane on each frame
@@ -639,7 +668,6 @@ function loop(){
           levelText.innerText = level
     }
     
-	
 	renderer.render(scene, camera);
 	requestAnimationFrame(loop);
     

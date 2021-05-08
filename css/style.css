@@ -33,6 +33,24 @@
 	color: #d1b790;
 }
 
+#pause {
+	position: absolute;
+	top: 40%;
+	left: 0;
+	width: 100%;
+	text-align: center;
+	pointer-events: none;
+}
+
+#pause h1 {
+	font-family: 'Playfair Display';
+	font-size: 2em;
+	line-height: 1;
+	margin: 0;
+	letter-spacing: -0.025em;
+	color: #d1b790;
+}
+
 .header {
 	position: absolute;
 	top: 8vh;
