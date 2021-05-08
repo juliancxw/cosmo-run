@@ -1,3 +1,5 @@
+
+
 let Colors = {
 	red:0xf25346,
 	white:0xd8d0d1,
@@ -5,6 +7,8 @@ let Colors = {
 	pink:0xF5986E,
 	brownDark:0x23190f,
 	blue:0x68c3c0,
+    planetColour: 0xf98548,
+    craterColour: 0xb31f64
 };
 
 
@@ -23,6 +27,7 @@ function init() {
 	createCosmo()
 	createPlanet()
     createWorldCraters()
+    createSpots()
 
     // add mouse listener to
     // move dog left and right when mouse moves
@@ -52,7 +57,7 @@ let shadowLight
 // Object variables
 let planetRadius = 26
 let pi = Math.PI
-let laneDistance = 1.25
+let laneDistance = 1
 let moveRotation = Math.asin(laneDistance/planetRadius)
 let spehericalCorrection = planetRadius - Math.cos(moveRotation) * planetRadius
 let planet 
@@ -65,20 +70,21 @@ let hasCollided = false
 let startTime
 let currentTime
 let planetRollingSpeed = 0.008
-let leftLane=-1
-let rightLane=1
-let middleLane=0
-let currentLane
 let pathAngleValues = [pi/2 - Math.asin(laneDistance / planetRadius), pi / 2, pi / 2 + Math.asin(laneDistance / planetRadius)]
-let nPathCraters = 30
+let nPathCraters = 60
 let nWorldCraters = 60
 let cratersInPath = []
 let cratersCreated = []
 let craterReleaseInterval = 1000
 let lastCraterReleaseTime = 0
 let spherical = new THREE.Spherical();
-let scoreText
-let score
+let scoreText = document.querySelector("#distValue")
+let score = 0
+let level = 1
+let levelText = document.querySelector('#levelValue')
+let gameOverText = document.querySelector('#game-over')
+gameOverText.style.visibility = "hidden"
+
 
 
 
@@ -93,7 +99,8 @@ function createScene() {
 	scene = new THREE.Scene();
 
 	// Add fog effect to the scene for depth perception - Fog( color , near distance, far distance )
-	// scene.fog = new THREE.Fog(0x322548, 6, 7);
+	scene.fog = new THREE.FogExp2(0xa21b8e, 0.1);
+
 	
 	// Create camera
 	aspectRatio = screenWidth / screenHeight;
@@ -154,6 +161,9 @@ function handleMouseDown(event){
         // Start timer to keep track of game
         startTime = new Date()
     }
+    // else if (gameStatus == "gameOver") {
+        
+    // }
     else {
         cosmo.jump()
     }
@@ -211,25 +221,76 @@ class Planet {
 	
     constructor () {
 	    // create the geometry (shape) of the planet; Sphere
-	    let geom = new THREE.SphereGeometry(planetRadius,40,40);
+        let widthSegments = 60
+        let heightSegments = 60
+        
+
+        let sandGeom = new THREE.SphereGeometry(planetRadius, widthSegments, heightSegments)
+        let sandMat = new THREE.MeshPhongMaterial({
+            color:Colors.planetColour,
+            specular:0x000000,
+            shininess:1,
+            transparent:true,
+            opacity:.5
+        })
+
+        let sand = new THREE.Mesh(sandGeom, sandMat)
+        sand.receiveShadow = true
+
+       
+
+	    let groundGeom = new THREE.SphereGeometry(planetRadius - 0.02, widthSegments, heightSegments);
 	
 	    // rotate the geometry on the x axis
 	    // geom.applyMatrix(new THREE.Matrix4().makeRotationX(-Math.PI/2));
 	
 	    // create the material 
-	    let mat = new THREE.MeshPhongMaterial({
-		    color:Colors.pink,
+	    let groundMat = new THREE.MeshBasicMaterial({
+		    color:Colors.planetColour,
 		    // transparent:true,
 		    // opacity:.6,
-		    shading:THREE.FlatShading,
+		    // shading:THREE.FlatShading,
 	    });
-   
-	    // create mesh object
-	    this.mesh = new THREE.Mesh(geom, mat);
+        	    // create mesh object
+	    this.mesh = new THREE.Mesh(groundGeom, groundMat);
 
 	    // Allow mesh to receive shadow
-	    this.mesh.receiveShadow = true; 
+	    this.mesh.receiveShadow = false; 
+        this.mesh.add(sand)
+
+
     }
+    //     var vertexIndex;
+	// var vertexVector= new THREE.Vector3();
+	// var nextVertexVector= new THREE.Vector3();
+	// var firstVertexVector= new THREE.Vector3();
+	// var offset= new THREE.Vector3();
+	// var currentTier=1;
+	// var lerpValue=0.5;
+	// var heightValue;
+	// var maxHeight=0.07;
+	// for(var j=1;j<heightSegments-2;j++){
+	// 	currentTier=j;
+	// 	for(var i=0;i<widthSegments;i++){
+	// 		vertexIndex=(currentTier*widthSegments)+1;
+	// 		vertexVector=geom.vertices[i+vertexIndex].clone();
+	// 		if(j%2!==0){
+	// 			if(i==0){
+	// 				firstVertexVector=vertexVector.clone();
+	// 			}
+	// 			nextVertexVector=geom.vertices[i+vertexIndex+1].clone();
+	// 			if(i==widthSegments-1){
+	// 				nextVertexVector=firstVertexVector;
+	// 			}
+	// 			lerpValue=(Math.random()*(0.75-0.25))+0.25;
+	// 			vertexVector.lerp(nextVertexVector,lerpValue);
+	// 		}
+	// 		heightValue=(Math.random()*maxHeight)-(maxHeight/2);
+	// 		offset=vertexVector.clone().normalize().multiplyScalar(heightValue);
+	// 		geom.vertices[i+vertexIndex]=(vertexVector.add(offset));
+	// 	}
+	// }
+
 }
 
 class Cosmo {
@@ -295,6 +356,15 @@ class Cosmo {
         this.head.castShadow = true;
         this.head.receiveShadow = true;
         this.torso.add(this.head)
+
+        // create tail
+        let tailGeom = new THREE.BoxGeometry(0.04, 0.3, 0.04 )
+        let tailMat = new THREE.MeshPhongMaterial({color:Colors.brown, shading:THREE.FlatShading})
+        this.tail = new THREE.Mesh(tailGeom, tailMat)
+        this.tail.position.y = 0.2
+        this.tail.position.z = -0.25
+        this.tail.rotation.x = -pi /8
+        this.torso.add(this.tail)
     }
 
     // Method for jumping
@@ -353,18 +423,24 @@ class Cosmo {
 class Crater {
     constructor () {
         this.mesh = new THREE.Object3D()
-        let craterGeom = new THREE.CylinderGeometry( 0.4, 0.8, 0.7, 40 )
-        let craterMat = new THREE.MeshPhongMaterial({color:Colors.brown, shading:THREE.FlatShading})
+        let craterGeom = new THREE.CylinderGeometry( 0.5, 0.8, 0.7, 40 )
+        let craterMat = new THREE.MeshLambertMaterial({color:Colors.craterColour})
         this.crater = new THREE.Mesh(craterGeom, craterMat)
         this.mesh.add(this.crater)
-        
-
         // this.mesh.position.y = planetRadius
     }
-    
-
 }
 
+class Spots {
+    constructor() {
+        this.mesh = new THREE.Object3D()
+        let spotGeom = new THREE.CylinderGeometry( 7, 7, 0.7, 40 )
+        let spotMat = new THREE.MeshLambertMaterial({color:Colors.craterColour})
+        this.spot = new THREE.Mesh(spotGeom, spotMat)
+        this.mesh.add(this.spot)
+
+    }
+}
 
 
 // Instantiate Planet and add to scene
@@ -380,6 +456,11 @@ function createPlanet(){
     planet.mesh.rotation.z = pi /2;
 	// add the mesh of the sea to the scene
 	scene.add(planet.mesh);
+}
+
+function createSpots() {
+    planetSpots = new Spots()
+    planetSpots.mesh.position.y = planetRadius
 }
 
 function createCosmo(){
@@ -414,8 +495,9 @@ function createCosmo(){
       // phi controls the lane 
       let phi = pathAngleValues[randomPath]
       // theta controls how far back in the sphere the crater is added on
-        // will add nearer and nearer as game goes on
+       
       let theta = - planet.mesh.rotation.x + 4
+   
       spherical.set( planetRadius, phi, theta )
       console.log("adding craters")
     //   spherical.set( planetRadius-0.3, pathAngleValues[randomPath], - planet.mesh.rotation.x -4 );
@@ -502,7 +584,9 @@ function collisionCheck(){
         if ( craterPos.distanceTo(cosmo.mesh.position) <= 1){
             console.log("collided")
             hasCollided = true
-            gameStatus = "paused"
+            gameStatus = "gameOver"
+            gameOverText.style.visibility = "visible"
+
         }
     })
 }
@@ -528,6 +612,31 @@ function loop(){
         }
         collisionCheck()
         removeCrater()
+        score += 1
+        // console.log(score)
+        scoreText.innerText = score
+
+        // Make game more difficult as level increases
+
+        switch (score) {
+            case 500:
+                level = 2
+                craterReleaseInterval /= 2
+                break;
+            case 1000:
+                level = 3
+                craterReleaseInterval /= 2
+                break;
+            case 1500:
+                level = 4
+                craterReleaseInterval /= 2
+                break;
+            case 2000:
+                level = 5
+                craterReleaseInterval /= 2
+                break;
+          }
+          levelText.innerText = level
     }
     
 	

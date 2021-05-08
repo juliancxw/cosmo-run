@@ -4,7 +4,8 @@
 	width: 100%;
 	height: 100%;
 	overflow: hidden;
-    background: linear-gradient(#322548, #FF267A);
+    background: linear-gradient(#1f172d, #a21b8e);
+
 }
 
 #world {
@@ -14,6 +15,23 @@
 	overflow: hidden;
 }
 
+#game-over {
+	position: absolute;
+	top: 40%;
+	left: 0;
+	width: 100%;
+	text-align: center;
+	pointer-events: none;
+}
+
+#game-over h1 {
+	font-family: 'Playfair Display';
+	font-size: 6em;
+	line-height: 1;
+	margin: 0;
+	letter-spacing: -0.025em;
+	color: #d1b790;
+}
 
 .header {
 	position: absolute;
@@ -48,14 +66,14 @@
 	text-indent: 1em;
 	letter-spacing: 1em;
 	text-transform: uppercase;
-	color: #d6483b;
+	color: #b31f64;
 }
 
 .header h2 span {
 	font-size: 0.8em;
 	margin: 0.25em 0;
 	display: block;
-	color: #d6483b;
+	color: #b31f64;
 }
 .score {
 	width: 100%;
@@ -97,6 +115,10 @@
 }
 
 .score__value--dist {
+	font-size: 30px;
+}
+
+.score__value--bonus {
 	font-size: 30px;
 }
 
